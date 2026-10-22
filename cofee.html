@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Working 3D Coffee Vending Machine Simulator (Black & Cold Coffee)</title>
+  <style>
+    :root {
+      --bg: #111318;
+      --panel: rgba(22, 26, 34, 0.94);
+      --accent: #e5a93c;
+      --accent-green: #2ecc71;
+      --accent-blue: #3898ec;
+      --accent-red: #e74c3c;
+      --text: #f3f5f8;
+      --muted: #9aa3b2;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .ui-panel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      width: 335px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+    }
+    .sim-panel {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 330px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      background: var(--panel);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(229, 169, 60, 0.35);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+      z-index: 10;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 3px;
+    }
+    .subtitle {
+      font-size: 11.5px;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .section-title {
+      font-size: 10.5px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      margin: 12px 0 7px;
+      font-weight: 700;
+    }
+    /* Live Mini LCD Preview in Simulator Panel */
+    .lcd-preview {
+      background: linear-gradient(135deg, #0047b3, #0b6dff, #003d99);
+      border: 4px solid #1c2026;
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-family: "Courier New", monospace;
+      font-weight: 700;
+      font-size: 15px;
+      color: #e6f4ff;
+      text-shadow: 0 0 6px rgba(180, 225, 255, 0.8);
+      letter-spacing: 1px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+      box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.45), 0 0 15px rgba(11, 109, 255, 0.35);
+    }
+    .sim-btn-col {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .sim-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    button {
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    button:hover:not(:disabled) {
+      background: rgba(229, 169, 60, 0.22);
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+    button:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+    .btn-coin {
+      background: linear-gradient(135deg, #d49b27, #b87b14);
+      color: #111;
+      border-color: #f5c55a;
+      font-size: 13px;
+      padding: 10px;
+    }
+    .btn-coin:hover:not(:disabled) {
+      background: linear-gradient(135deg, #e8b038, #c98a1c);
+      color: #000;
+    }
+    .btn-black {
+      background: rgba(65, 38, 22, 0.85);
+      border-color: #a66c46;
+      color: #ffdfc7;
+    }
+    .btn-black:hover:not(:disabled) {
+      background: rgba(95, 55, 32, 0.95);
+      border-color: #d99366;
+    }
+    .btn-cold {
+      background: rgba(180, 138, 90, 0.35);
+      border-color: #deb887;
+      color: #fff5e6;
+    }
+    .btn-cold:hover:not(:disabled) {
+      background: rgba(180, 138, 90, 0.6);
+      border-color: #ffe4c4;
+    }
+    .tank-bars {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .tank-card {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+    }
+    .tank-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 5px;
+    }
+    .tank-bar-fill {
+      height: 100%;
+      transition: width 0.2s ease;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 700;
+      margin-left: 4px;
+    }
+    .btn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .control-group { margin-bottom: 9px; }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      margin-bottom: 3px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .toggle-list {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    label.checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    label.checkbox-row input {
+      accent-color: var(--accent);
+      width: 14px;
+      height: 14px;
+    }
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 18, 24, 0.95);
+      border: 1px solid var(--accent);
+      color: #fff;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      max-width: 260px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+      display: none;
+      z-index: 30;
+    }
+    #tooltip strong { color: var(--accent); display: block; margin-bottom: 2px; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <div id="canvas-container"></div>
+  <div id="tooltip"></div>
+
+  <!-- Left Enclosure & View Controls -->
+  <div class="ui-panel">
+    <h1>3D Coffee Machine Enclosure</h1>
+    <div class="subtitle">180 W × 300 H × 140 D mm • Click 3D Buttons or Coin Slot!</div>
+
+    <div class="section-title">Camera Views</div>
+    <div class="btn-grid">
+      <button onclick="setCameraView('iso')">3D Isometric</button>
+      <button onclick="setCameraView('front')">Front Interactive</button>
+      <button onclick="setCameraView('tanks')">Tank Bay (Top)</button>
+      <button onclick="setCameraView('cup')">Cup Bay (Dispense)</button>
+      <button onclick="setCameraView('electronics')">Electronics Bay</button>
+      <button onclick="setCameraView('side')">Side Section</button>
+    </div>
+
+    <div class="section-title">Enclosure Inspection</div>
+    <div class="control-group">
+      <div class="slider-header">
+        <span>Explode Cardboard Walls</span>
+        <span id="explode-val">0%</span>
+      </div>
+      <input type="range" id="explode-slider" min="0" max="100" value="0">
+    </div>
+
+    <div class="control-group">
+      <div class="slider-header">
+        <span>Cardboard Opacity</span>
+        <span id="opacity-val">42%</span>
+      </div>
+      <input type="range" id="opacity-slider" min="10" max="100" value="42">
+    </div>
+
+    <div class="section-title">Show / Hide Layers</div>
+    <div class="toggle-list">
+      <label class="checkbox-row"><input type="checkbox" id="toggle-front" checked> Front Wall (LCD, Buttons, Coin)</label>
+      <label class="checkbox-row"><input type="checkbox" id="toggle-right" checked> Right Wall (Uncheck for Section)</label>
+      <label class="checkbox-row"><input type="checkbox" id="toggle-left" checked> Left Wall</label>
+      <label class="checkbox-row"><input type="checkbox" id="toggle-back" checked> Back Wall</label>
+      <label class="checkbox-row"><input type="checkbox" id="toggle-top" checked> Top Refill Lid (2× Ø45 mm)</label>
+      <label class="checkbox-row"><input type="checkbox" id="toggle-shelves" checked> Shelves 1 & 2 + Base Plate</label>
+    </div>
+  </div>
+
+  <!-- Right Live Vending Simulator Panel -->
+  <div class="sim-panel">
+    <h1>Live Vending Machine Simulator</h1>
+    <div class="subtitle">Test Coin → LCD → Drink Selection → Small Cup Pour</div>
+
+    <div class="section-title">Live LCD1602 Screen (16×2)</div>
+    <div class="lcd-preview" id="lcd-html-preview">
+      <div id="lcd-line-1">INSERT COIN...  </div>
+      <div id="lcd-line-2">1:BLACK  2:COLD </div>
+    </div>
+
+    <div class="section-title">Interactive Vending Controls</div>
+    <div class="sim-btn-col">
+      <button class="btn-coin" id="btn-insert-coin" onclick="simInsertCoin()">
+        🪙 1. Insert Coin (IR Coin Sensor)
+      </button>
+      <div class="sim-btn-row">
+        <button class="btn-black" id="btn-select-black" onclick="simSelectDrink('BLACK')" disabled>
+          ☕ 2A. Black Coffee (BTN 1)
+        </button>
+        <button class="btn-cold" id="btn-select-cold" onclick="simSelectDrink('COLD')" disabled>
+          🧋 2B. Cold Coffee (BTN 2)
+        </button>
+      </div>
+      <div class="sim-btn-row">
+        <button id="btn-reset-cup" onclick="simEmptyCup()">
+          🥤 Take / Empty Cup
+        </button>
+        <button id="btn-refill-tanks" onclick="simRefillTanks()">
+          🫗 Refill Both Tanks
+        </button>
+      </div>
+    </div>
+
+    <div class="section-title">Container Levels & P35 Float Sensors</div>
+    <div class="tank-bars">
+      <div class="tank-card">
+        <div style="display:flex;justify-content:space-between;">
+          <strong>Black Coffee</strong>
+          <span id="black-pct">85%</span>
+        </div>
+        <div class="tank-bar-bg">
+          <div class="tank-bar-fill" id="black-bar" style="width:85%;background:#5c3317;"></div>
+        </div>
+        <div style="margin-top:4px;font-size:10.5px;color:var(--muted);">
+          P35 Float: <span id="black-float-status" style="color:#2ecc71;font-weight:700;">OK</span>
+        </div>
+      </div>
+
+      <div class="tank-card">
+        <div style="display:flex;justify-content:space-between;">
+          <strong>Cold Coffee</strong>
+          <span id="cold-pct">85%</span>
+        </div>
+        <div class="tank-bar-bg">
+          <div class="tank-bar-fill" id="cold-bar" style="width:85%;background:#c69868;"></div>
+        </div>
+        <div style="margin-top:4px;font-size:10.5px;color:var(--muted);">
+          P35 Float: <span id="cold-float-status" style="color:#2ecc71;font-weight:700;">OK</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="tank-card" style="margin-top:6px;">
+      <div style="display:flex;justify-content:space-between;">
+        <strong>Small Cup Fill Level</strong>
+        <span id="cup-pct">0% (Empty)</span>
+      </div>
+      <div class="tank-bar-bg">
+        <div class="tank-bar-fill" id="cup-bar" style="width:0%;background:var(--accent);"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const container = document.getElementById('canvas-container');
+    const tooltip = document.getElementById('tooltip');
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x111318);
+
+    // Enclosure Dimensions (mm)
+    const W = 180, H = 300, D = 140, T = 3;
+
+    const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 1, 3000);
+    camera.position.set(270, 210, 360);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.target.set(0, 145, 0);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+
+    // Lighting
+    scene.add(new THREE.AmbientLight(0xffffff, 0.85));
+    const keyLight = new THREE.DirectionalLight(0xfff7e8, 1.25);
+    keyLight.position.set(240, 420, 300);
+    scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0x8ab4f8, 0.55);
+    fillLight.position.set(-260, 180, -240);
+    scene.add(fillLight);
+
+    const grid = new THREE.GridHelper(520, 26, 0x353b47, 0x20242c);
+    scene.add(grid);
+
+    // ============================================================================
+    // DYNAMIC CANVAS TEXTURES (Live Updating LCD1602, Tank Labels, PCBs)
+    // ============================================================================
+    function makeCanvasTexture(w, h, drawFn) {
+      const c = document.createElement('canvas');
+      c.width = w;
+      c.height = h;
+      const ctx = c.getContext('2d');
+      drawFn(ctx, w, h);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      tex.anisotropy = 8;
+      return { tex, canvas: c, ctx };
+    }
+
+    // Dynamic LCD1602 Texture (Updates live during coin insert & brewing!)
+    const lcdCanvasObj = makeCanvasTexture(800, 360, () => {});
+    function updateLCDTexture(line1, line2) {
+      const ctx = lcdCanvasObj.ctx;
+      const w = 800, h = 360;
+      ctx.fillStyle = '#1b6d3e';
+      ctx.fillRect(0, 0, w, h);
+      for (let i = 0; i < 16; i++) {
+        ctx.fillStyle = '#d4af37';
+        ctx.beginPath(); ctx.arc(55 + i * 24, 22, 8, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#15181c';
+      ctx.beginPath(); ctx.roundRect(45, 42, 710, 276, 12); ctx.fill();
+
+      const grad = ctx.createLinearGradient(75, 72, 725, 288);
+      grad.addColorStop(0, '#0052cc');
+      grad.addColorStop(0.5, '#0b6dff');
+      grad.addColorStop(1, '#0047b3');
+      ctx.fillStyle = grad;
+      ctx.fillRect(75, 78, 650, 204);
+
+      ctx.fillStyle = 'rgba(0, 25, 85, 0.35)';
+      for (let r = 0; r < 2; r++) {
+        for (let c = 0; c < 16; c++) {
+          ctx.fillRect(92 + c * 38.5, 94 + r * 92, 33, 76);
+        }
+      }
+      ctx.fillStyle = '#e6f4ff';
+      ctx.font = 'bold 45px "Courier New", monospace';
+      ctx.fillText(line1.padEnd(16, ' ').slice(0, 16), 92, 148);
+      ctx.fillText(line2.padEnd(16, ' ').slice(0, 16), 92, 240);
+      lcdCanvasObj.tex.needsUpdate = true;
+
+      // Also sync HTML preview in right sidebar
+      document.getElementById('lcd-line-1').textContent = line1.padEnd(16, '\u00A0').slice(0, 16);
+      document.getElementById('lcd-line-2').textContent = line2.padEnd(16, '\u00A0').slice(0, 16);
+    }
+    updateLCDTexture('INSERT COIN...  ', '1:BLACK  2:COLD ');
+
+    // Tank Container Curved Label Texture
+    function createTankLabelTex(title, subtitle, bgHex, accentHex) {
+      return makeCanvasTexture(512, 180, (ctx, w, h) => {
+        ctx.fillStyle = bgHex;
+        ctx.fillRect(0, 0, w, h);
+        ctx.strokeStyle = accentHex;
+        ctx.lineWidth = 8;
+        ctx.strokeRect(8, 8, w - 16, h - 16);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 46px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(title, w / 2, 85);
+        ctx.fillStyle = accentHex;
+        ctx.font = 'bold 28px monospace';
+        ctx.fillText(subtitle, w / 2, 138);
+      }).tex;
+    }
+    const blackCoffeeLabelTex = createTankLabelTex('BLACK COFFEE', 'TANK 1 • PUMP 1', '#24140b', '#e5a93c');
+    const coldCoffeeLabelTex  = createTankLabelTex('COLD COFFEE',  'TANK 2 • PUMP 2', '#47301d', '#ffdfab');
+
+    // Arduino Uno PCB Texture
+    const arduinoTex = makeCanvasTexture(680, 530, (ctx, w, h) => {
+      ctx.fillStyle = '#006873'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#e8f4f6'; ctx.lineWidth = 4; ctx.strokeRect(10, 10, w - 20, h - 20);
+      ctx.fillStyle = '#1c1e21'; ctx.fillRect(160, 16, 480, 28); ctx.fillRect(190, h - 44, 450, 28);
+      ctx.fillStyle = '#22252a'; ctx.fillRect(290, 260, 310, 95);
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 42px sans-serif'; ctx.fillText('ARDUINO UNO', 230, 135);
+    }).tex;
+
+    // Breadboard Texture
+    const breadboardTex = makeCanvasTexture(820, 540, (ctx, w, h) => {
+      ctx.fillStyle = '#f4f3ef'; ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = '#d9383a'; ctx.lineWidth = 5;
+      ctx.beginPath(); ctx.moveTo(40, 22); ctx.lineTo(w - 40, 22); ctx.stroke();
+      ctx.strokeStyle = '#2673d1';
+      ctx.beginPath(); ctx.moveTo(40, h - 22); ctx.lineTo(w - 40, h - 22); ctx.stroke();
+      ctx.fillStyle = '#dcdae2'; ctx.fillRect(20, h / 2 - 18, w - 40, 36);
+      ctx.fillStyle = '#2b2d30';
+      for (let col = 0; col < 60; col++) {
+        const x = 45 + col * 12;
+        for (let r = 0; r < 5; r++) {
+          ctx.fillRect(x, 118 + r * 24, 5, 5);
+          ctx.fillRect(x, 305 + r * 24, 5, 5);
+        }
+      }
+    }).tex;
+
+    // ============================================================================
+    // CARDBOARD ENCLOSURE (180 x 300 x 140 mm, 3 mm walls)
+    // ============================================================================
+    const cardboardMaterial = new THREE.MeshStandardMaterial({
+      color: 0xdec496,
+      roughness: 0.78,
+      metalness: 0.05,
+      transparent: true,
+      opacity: 0.42,
+      side: THREE.DoubleSide
+    });
+    const cutEdgeMaterial = new THREE.LineBasicMaterial({ color: 0xc83e3b });
+    const blueDashMaterial = new THREE.LineDashedMaterial({ color: 0x4a86c5, dashSize: 4, gapSize: 3 });
+
+    function createCardboardPanel(width, height, holesFn, guideLinesFn) {
+      const group = new THREE.Group();
+      const shape = new THREE.Shape();
+      shape.moveTo(-width / 2, -height / 2);
+      shape.lineTo(width / 2, -height / 2);
+      shape.lineTo(width / 2, height / 2);
+      shape.lineTo(-width / 2, height / 2);
+      shape.closePath();
+      if (holesFn) holesFn(shape);
+      const geom = new THREE.ExtrudeGeometry(shape, { depth: T, bevelEnabled: false, curveSegments: 36 });
+      geom.translate(0, 0, -T / 2);
+      group.add(new THREE.Mesh(geom, cardboardMaterial));
+      group.add(new THREE.LineSegments(new THREE.EdgesGeometry(geom, 18), cutEdgeMaterial));
+      if (guideLinesFn) guideLinesFn(group);
+      return group;
+    }
+
+    function addCircleHole(shape, cx, cy, r) {
+      const p = new THREE.Path(); p.absarc(cx, cy, r, 0, Math.PI * 2, true); shape.holes.push(p);
+    }
+    function addRectHole(shape, cx, cy, rw, rh) {
+      const p = new THREE.Path();
+      p.moveTo(cx - rw / 2, cy - rh / 2); p.lineTo(cx + rw / 2, cy - rh / 2);
+      p.lineTo(cx + rw / 2, cy + rh / 2); p.lineTo(cx - rw / 2, cy + rh / 2);
+      p.closePath(); shape.holes.push(p);
+    }
+    function addDashedLine(group, x1, y1, z1, x2, y2, z2) {
+      const geom = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1, y1, z1), new THREE.Vector3(x2, y2, z2)]);
+      const line = new THREE.Line(geom, blueDashMaterial); line.computeLineDistances(); group.add(line);
+    }
+
+    const panels = [];
+    function registerPanel(meshGroup, basePos, explodeVec, category) {
+      meshGroup.position.copy(basePos);
+      meshGroup.userData = { basePos: basePos.clone(), explodeVec: explodeVec.clone(), category };
+      scene.add(meshGroup);
+      panels.push(meshGroup);
+      return meshGroup;
+    }
+
+    // Front Panel with printed Front Labels for BTN 1 (BLACK), BTN 2 (COLD), COIN
+    const frontPanel = createCardboardPanel(W, H, (s) => {
+      addRectHole(s, 0, 56 - 150, 100, 96);     // Cup Window 100x96
+      addRectHole(s, -6, 172 - 150, 66, 16);    // LCD 66x16
+      addCircleHole(s, -45, 136 - 150, 6);      // BTN 1 (Black Coffee)
+      addCircleHole(s, 0, 136 - 150, 6);        // BTN 2 (Cold Coffee)
+      addRectHole(s, 48, 136 - 150, 30, 5);     // COIN slot
+    }, (g) => {
+      addDashedLine(g, -90, 112.5 - 150, 1.6, 90, 112.5 - 150, 1.6);
+      addDashedLine(g, -90, 195.5 - 150, 1.6, 90, 195.5 - 150, 1.6);
+    });
+    registerPanel(frontPanel, new THREE.Vector3(0, 150, D / 2 - T / 2), new THREE.Vector3(0, 0, 115), 'front');
+
+    const backPanel = createCardboardPanel(W, H, (s) => {
+      addRectHole(s, -36, 146 - 150, 14, 11);
+      addRectHole(s, 32, 146 - 150, 14, 11);
+    });
+    registerPanel(backPanel, new THREE.Vector3(0, 150, -D / 2 + T / 2), new THREE.Vector3(0, 0, -115), 'back');
+
+    const sideDepth = D - 2 * T;
+    const leftPanel = createCardboardPanel(sideDepth, H);
+    leftPanel.rotation.y = Math.PI / 2;
+    registerPanel(leftPanel, new THREE.Vector3(-W / 2 + T / 2, 150, 0), new THREE.Vector3(-115, 0, 0), 'left');
+
+    const rightPanel = createCardboardPanel(sideDepth, H);
+    rightPanel.rotation.y = Math.PI / 2;
+    registerPanel(rightPanel, new THREE.Vector3(W / 2 - T / 2, 150, 0), new THREE.Vector3(115, 0, 0), 'right');
+
+    const shelfW = W - 2 * T, shelfD = D - 2 * T;
+    const topLid = createCardboardPanel(shelfW, shelfD, (s) => {
+      addCircleHole(s, -42, 8, 22.5);
+      addCircleHole(s, 42, 8, 22.5);
+    });
+    topLid.rotation.x = Math.PI / 2;
+    registerPanel(topLid, new THREE.Vector3(0, 298.5, 0), new THREE.Vector3(0, 95, 0), 'top');
+
+    const shelf1 = createCardboardPanel(shelfW, shelfD, (s) => {
+      addCircleHole(s, -42, -38, 7);
+      addCircleHole(s, 42, -38, 7);
+    });
+    shelf1.rotation.x = Math.PI / 2;
+    registerPanel(shelf1, new THREE.Vector3(0, 195.5, 0), new THREE.Vector3(0, 35, 0), 'shelves');
+
+    const shelf2 = createCardboardPanel(shelfW, shelfD, (s) => {
+      addCircleHole(s, -7, 0, 4);
+      addCircleHole(s, 7, 0, 4);
+    });
+    shelf2.rotation.x = Math.PI / 2;
+    registerPanel(shelf2, new THREE.Vector3(0, 112.5, 0), new THREE.Vector3(0, -25, 0), 'shelves');
+
+    const basePlate = createCardboardPanel(shelfW, shelfD);
+    basePlate.rotation.x = Math.PI / 2;
+    registerPanel(basePlate, new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, -85, 0), 'shelves');
+
+    // ============================================================================
+    // WORKING CONTAINERS (LEFT: BLACK COFFEE, RIGHT: COLD COFFEE) + PUMPS + FLOATS
+    // ============================================================================
+    const jarGeo = new THREE.CylinderGeometry(35, 35, 85, 36, 1, true);
+    const jarMat = new THREE.MeshPhysicalMaterial({
+      color: 0xd8f0ff,
+      transparent: true,
+      opacity: 0.32,
+      roughness: 0.1,
+      transmission: 0.55,
+      side: THREE.DoubleSide
+    });
+
+    const maxTankHeight = 70; // mm of liquid when 100% full
+    const tankState = {
+      BLACK: { level: 0.85, color: 0x2b1508, streamColor: 0x3b1e0d, x: -42, nozzleX: -7 },
+      COLD:  { level: 0.85, color: 0xc69868, streamColor: 0xd4a97b, x: 42,  nozzleX: 7 }
+    };
+
+    const tankMeshes = {};
+
+    ['BLACK', 'COLD'].forEach((type) => {
+      const info = tankState[type];
+      const xPos = info.x;
+
+      // Clear Jar Wall
+      const jar = new THREE.Mesh(jarGeo, jarMat);
+      jar.position.set(xPos, 197 + 85 / 2, 8);
+      scene.add(jar);
+
+      // Front Curved Container Badge Label ("BLACK COFFEE" / "COLD COFFEE")
+      const badgeGeo = new THREE.CylinderGeometry(35.3, 35.3, 22, 32, 1, true, -Math.PI / 3, (2 * Math.PI) / 3);
+      const badgeMat = new THREE.MeshBasicMaterial({
+        map: type === 'BLACK' ? blackCoffeeLabelTex : coldCoffeeLabelTex,
+        side: THREE.DoubleSide
+      });
+      const badge = new THREE.Mesh(badgeGeo, badgeMat);
+      badge.position.set(xPos, 197 + 58, 8);
+      scene.add(badge);
+
+      // Dynamic Liquid Cylinder Inside Container
+      const liqGeo = new THREE.CylinderGeometry(33.6, 33.6, maxTankHeight, 32);
+      // Shift geometry origin to bottom so scaling Y scales upward from tank floor!
+      liqGeo.translate(0, maxTankHeight / 2, 0);
+      const liqMat = new THREE.MeshStandardMaterial({
+        color: info.color,
+        roughness: 0.25,
+        transparent: true,
+        opacity: 0.92
+      });
+      const liqMesh = new THREE.Mesh(liqGeo, liqMat);
+      liqMesh.position.set(xPos, 197.5, 8);
+      liqMesh.scale.y = info.level;
+      scene.add(liqMesh);
+
+      // Vertical Mini Submersible Pump DC 3V-5V at bottom of jar
+      const pumpBody = new THREE.Mesh(
+        new THREE.CylinderGeometry(11.5, 11.5, 32, 24),
+        new THREE.MeshStandardMaterial({ color: 0xf4f1e6, roughness: 0.35 })
+      );
+      pumpBody.position.set(xPos, 197 + 17, 8);
+      scene.add(pumpBody);
+
+      // P35 Small Float Level Switch (stem + moving float drum that tracks liquid surface)
+      const fX = xPos + 20;
+      const stem = new THREE.Mesh(
+        new THREE.CylinderGeometry(2.2, 2.2, 55, 16),
+        new THREE.MeshStandardMaterial({ color: 0xfafbfc })
+      );
+      stem.position.set(fX, 197 + 56, 8);
+      scene.add(stem);
+
+      const floatDrum = new THREE.Mesh(
+        new THREE.CylinderGeometry(8, 8, 16, 24),
+        new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.2 })
+      );
+      floatDrum.position.set(fX, 197.5 + info.level * maxTankHeight - 4, 8);
+      scene.add(floatDrum);
+
+      // 6mm Silicone Dispensing Tube from Pump -> Shelf 1 Ø14 hole -> Shelf 2 Ø8 nozzle hole
+      const pipeCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(xPos, 197 + 35, 8),
+        new THREE.Vector3(xPos, 286, 8),
+        new THREE.Vector3(xPos, 286, -38),
+        new THREE.Vector3(xPos, 195, -38),
+        new THREE.Vector3(xPos, 138, -28),
+        new THREE.Vector3(info.nozzleX, 120, 0),
+        new THREE.Vector3(info.nozzleX, 94, 0) // Nozzle tip above small cup
+      ]);
+      const tubeMat = new THREE.MeshPhysicalMaterial({
+        color: 0xfff8eb,
+        transparent: true,
+        opacity: 0.65,
+        roughness: 0.2
+      });
+      const tubeMesh = new THREE.Mesh(new THREE.TubeGeometry(pipeCurve, 52, 3.1, 14, false), tubeMat);
+      scene.add(tubeMesh);
+
+      // Vertical Pouring Stream from Nozzle Tip (Y=94) down into Small Cup (Y=3..60)
+      const streamGeo = new THREE.CylinderGeometry(2.1, 2.6, 88, 16);
+      const streamMat = new THREE.MeshStandardMaterial({
+        color: info.streamColor,
+        roughness: 0.2,
+        transparent: true,
+        opacity: 0.95
+      });
+      const streamMesh = new THREE.Mesh(streamGeo, streamMat);
+      streamMesh.position.set(info.nozzleX, 50, 0);
+      streamMesh.visible = false;
+      scene.add(streamMesh);
+
+      tankMeshes[type] = { liqMesh, floatDrum, tubeMat, streamMesh };
+    });
+
+    // ============================================================================
+    // SMALL COFFEE CUP + RISING COFFEE LIQUID INSIDE CUP BAY (Bottom Bay)
+    // ============================================================================
+    // Small Cup (Ø56 top, Ø40 bottom, 60 mm tall) resting on Base Plate (Y = 3 mm)
+    const cupHeight = 60;
+    const cupOuter = new THREE.Mesh(
+      new THREE.CylinderGeometry(28, 20, cupHeight, 36, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0xf5efe6, roughness: 0.4, side: THREE.DoubleSide })
+    );
+    cupOuter.position.set(0, 3 + cupHeight / 2, 0);
+    scene.add(cupOuter);
+
+    // Subtle coffee sleeve around small cup
+    const cupSleeve = new THREE.Mesh(
+      new THREE.CylinderGeometry(25.8, 22.8, 24, 36, 1, true),
+      new THREE.MeshStandardMaterial({ color: 0xc69c6d, roughness: 0.7, side: THREE.DoubleSide })
+    );
+    cupSleeve.position.set(0, 3 + 30, 0);
+    scene.add(cupSleeve);
+
+    const cupBottom = new THREE.Mesh(
+      new THREE.CircleGeometry(20, 36),
+      new THREE.MeshStandardMaterial({ color: 0xe8e0d5, side: THREE.DoubleSide })
+    );
+    cupBottom.rotation.x = -Math.PI / 2;
+    cupBottom.position.set(0, 3.2, 0);
+    scene.add(cupBottom);
+
+    // Rising Liquid inside Small Cup
+    const maxCupLiquidH = 48;
+    const cupLiqGeo = new THREE.CylinderGeometry(26.2, 19.5, maxCupLiquidH, 32);
+    cupLiqGeo.translate(0, maxCupLiquidH / 2, 0);
+    const cupLiqMat = new THREE.MeshStandardMaterial({
+      color: 0x2b1508,
+      roughness: 0.2
+    });
+    const cupLiqMesh = new THREE.Mesh(cupLiqGeo, cupLiqMat);
+    cupLiqMesh.position.set(0, 3.5, 0);
+    cupLiqMesh.scale.y = 0.001;
+    cupLiqMesh.visible = false;
+    scene.add(cupLiqMesh);
+
+    // ============================================================================
+    // ELECTRONICS BAY MODULES (LCD1602, Clickable Buttons, Coin Slot + 3D Coin, Relay, Uno)
+    // ============================================================================
+    const clickableObjects = [];
+
+    // 1. Live LCD1602 Screen behind Front Window (Y = 172 mm)
+    const lcdMats = [
+      new THREE.MeshStandardMaterial({ color: 0x1b6d3e }),
+      new THREE.MeshStandardMaterial({ color: 0x1b6d3e }),
+      new THREE.MeshStandardMaterial({ color: 0x1b6d3e }),
+      new THREE.MeshStandardMaterial({ color: 0x1b6d3e }),
+      new THREE.MeshStandardMaterial({ map: lcdCanvasObj.tex, roughness: 0.2, emissive: 0x083b99, emissiveIntensity: 0.55 }),
+      new THREE.MeshStandardMaterial({ color: 0x14522e })
+    ];
+    const lcdMesh = new THREE.Mesh(new THREE.BoxGeometry(80, 36, 9), lcdMats);
+    lcdMesh.position.set(-6, 172, D / 2 - T - 4.5);
+    scene.add(lcdMesh);
+
+    // 2. Interactive Tactile Push Buttons: BTN 1 (Black Coffee) & BTN 2 (Cold Coffee)
+    const btnPlungers = {};
+    [
+      { key: 'BLACK', x: -45, color: 0xd9383a, label: 'BTN 1: Select Black Coffee' },
+      { key: 'COLD',  x: 0,   color: 0x2673d1, label: 'BTN 2: Select Cold Coffee' }
+    ].forEach((b) => {
+      const plunger = new THREE.Mesh(
+        new THREE.CylinderGeometry(5.2, 5.2, 7, 24),
+        new THREE.MeshStandardMaterial({ color: b.color, roughness: 0.3 })
+      );
+      plunger.rotation.x = Math.PI / 2;
+      plunger.position.set(b.x, 136, D / 2 - 0.5);
+      plunger.userData = { action: b.key, tooltip: b.label };
+      scene.add(plunger);
+      clickableObjects.push(plunger);
+      btnPlungers[b.key] = plunger;
+    });
+
+    // 3. Interactive Coin Slot Target + Animated 3D Metal Coin + IR Obstacle Sensor LED
+    const coinSlotHitbox = new THREE.Mesh(
+      new THREE.BoxGeometry(32, 9, 8),
+      new THREE.MeshBasicMaterial({ color: 0xf5c55a, transparent: true, opacity: 0.18 })
+    );
+    coinSlotHitbox.position.set(48, 136, D / 2);
+    coinSlotHitbox.userData = { action: 'COIN', tooltip: 'Click to Insert Coin into IR Slot' };
+    scene.add(coinSlotHitbox);
+    clickableObjects.push(coinSlotHitbox);
+
+    // 3D Gold/Brass Coin that animates sliding into the slot
+    const coinMesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(11, 11, 2.2, 32),
+      new THREE.MeshStandardMaterial({ color: 0xf2be42, metalness: 0.85, roughness: 0.2 })
+    );
+    coinMesh.position.set(48, 136, D / 2 + 18);
+    coinMesh.visible = false;
+    scene.add(coinMesh);
+
+    // IR Obstacle Sensor PCB + Indicator LED behind COIN slot
+    const irPcb = new THREE.Mesh(
+      new THREE.BoxGeometry(32, 2, 14),
+      new THREE.MeshStandardMaterial({ color: 0x14529e })
+    );
+    irPcb.position.set(48, 131, D / 2 - T - 14);
+    scene.add(irPcb);
+
+    const irTriggerLed = new THREE.Mesh(
+      new THREE.SphereGeometry(2.2, 16, 16),
+      new THREE.MeshStandardMaterial({ color: 0x333333, emissive: 0x000000 })
+    );
+    irTriggerLed.position.set(42, 133, D / 2 - T - 12);
+    scene.add(irTriggerLed);
+
+    // 4. Arduino Uno R3, MB102 Breadboard, and 5V Dual Relay with Channel LEDs on Shelf 2
+    const unoPcb = new THREE.Mesh(
+      new THREE.BoxGeometry(68.6, 2.5, 53.4),
+      new THREE.MeshStandardMaterial({ map: arduinoTex })
+    );
+    unoPcb.position.set(-42, 114 + 1.25, -26);
+    scene.add(unoPcb);
+
+    const bbMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(162, 9.5, 54),
+      new THREE.MeshStandardMaterial({ map: breadboardTex })
+    );
+    bbMesh.position.set(0, 114 + 4.75, 32);
+    scene.add(bbMesh);
+
+    // Dual Relay Module + 2 Active Channel Indicator LEDs (IN1 = Black Coffee, IN2 = Cold Coffee)
+    const relayBase = new THREE.Mesh(
+      new THREE.BoxGeometry(50.5, 2, 38.5),
+      new THREE.MeshStandardMaterial({ color: 0x8b1e24 })
+    );
+    relayBase.position.set(42, 114 + 1, -26);
+    scene.add(relayBase);
+
+    const relayChannelLeds = {};
+    [
+      { key: 'BLACK', z: -34 },
+      { key: 'COLD',  z: -18 }
+    ].forEach((r) => {
+      const cube = new THREE.Mesh(
+        new THREE.BoxGeometry(19, 15.5, 15),
+        new THREE.MeshStandardMaterial({ color: 0x0d5bb5, roughness: 0.35 })
+      );
+      cube.position.set(40, 114 + 9.5, r.z);
+      scene.add(cube);
+
+      const led = new THREE.Mesh(
+        new THREE.SphereGeometry(2.0, 16, 16),
+        new THREE.MeshStandardMaterial({ color: 0x331111, emissive: 0x000000 })
+      );
+      led.position.set(28, 117, r.z);
+      scene.add(led);
+      relayChannelLeds[r.key] = led;
+    });
+
+    // ============================================================================
+    // VENDING STATE MACHINE & REAL-TIME ANIMATION LOOP
+    // States: 'IDLE' -> 'COIN_ANIM' -> 'SELECT_DRINK' -> 'DISPENSING' -> 'DONE'
+    // ============================================================================
+    let machineState = 'IDLE';
+    let activeDrink = null;
+    let dispenseProgress = 0; // 0 to 1
+    let cupFillLevel = 0;     // 0 to 1
+    let coinAnimProgress = 0;
+
+    const btnCoinEl  = document.getElementById('btn-insert-coin');
+    const btnBlackEl = document.getElementById('btn-select-black');
+    const btnColdEl  = document.getElementById('btn-select-cold');
+
+    function refreshTankUI() {
+      ['BLACK', 'COLD'].forEach((k) => {
+        const pct = Math.round(tankState[k].level * 100);
+        const prefix = k.toLowerCase();
+        document.getElementById(`${prefix}-pct`).textContent = `${pct}%`;
+        document.getElementById(`${prefix}-bar`).style.width = `${pct}%`;
+        const floatEl = document.getElementById(`${prefix}-float-status`);
+        if (tankState[k].level <= 0.12) {
+          floatEl.textContent = 'LOW (REFILL!)';
+          floatEl.style.color = '#e74c3c';
+        } else {
+          floatEl.textContent = 'OK';
+          floatEl.style.color = '#2ecc71';
+        }
+        // Update 3D tank liquid height & P35 float position
+        tankMeshes[k].liqMesh.scale.y = Math.max(0.02, tankState[k].level);
+        tankMeshes[k].floatDrum.position.y = 197.5 + tankState[k].level * maxTankHeight - 4;
+      });
+
+      const cupPct = Math.round(cupFillLevel * 100);
+      document.getElementById('cup-pct').textContent = cupPct === 0 ? '0% (Empty)' : `${cupPct}% (${activeDrink || 'Filled'})`;
+      document.getElementById('cup-bar').style.width = `${cupPct}%`;
+    }
+
+    // 1. Insert Coin Action
+    window.simInsertCoin = function() {
+      if (machineState !== 'IDLE' && machineState !== 'DONE') return;
+
+      // If cup was full from previous drink, auto-reset cup for fresh vend
+      if (cupFillLevel >= 0.95) {
+        cupFillLevel = 0;
+        cupLiqMesh.visible = false;
+      }
+
+      machineState = 'COIN_ANIM';
+      coinAnimProgress = 0;
+      coinMesh.visible = true;
+      coinMesh.position.set(48, 136, D / 2 + 22);
+
+      btnCoinEl.disabled = true;
+      updateLCDTexture('CHECKING COIN...', 'IR SENSOR ACTIVE');
+    };
+
+    // 2. Select Black Coffee or Cold Coffee Action
+    window.simSelectDrink = function(type) {
+      if (machineState !== 'SELECT_DRINK') return;
+
+      // Check P35 Float Switch tank level first
+      if (tankState[type].level <= 0.12) {
+        updateLCDTexture(
+          type === 'BLACK' ? 'BLACK TANK LOW! ' : 'COLD TANK LOW!  ',
+          'PLEASE REFILL   '
+        );
+        return;
+      }
+
+      activeDrink = type;
+      machineState = 'DISPENSING';
+      dispenseProgress = 0;
+
+      // Animate button press inward
+      btnPlungers[type].position.z = D / 2 - 3.2;
+      setTimeout(() => { btnPlungers[type].position.z = D / 2 - 0.5; }, 250);
+
+      btnBlackEl.disabled = true;
+      btnColdEl.disabled = true;
+
+      // Turn ON corresponding Relay LED, color silicone tube & nozzle stream
+      relayChannelLeds[type].material.color.setHex(0xff3b30);
+      relayChannelLeds[type].material.emissive.setHex(0xff1e00);
+      tankMeshes[type].tubeMat.color.setHex(tankState[type].streamColor);
+      tankMeshes[type].streamMesh.visible = true;
+
+      // Set cup liquid color to match Black Coffee or Cold Coffee
+      cupLiqMat.color.setHex(tankState[type].color);
+      cupLiqMesh.visible = true;
+    };
+
+    // 3. Empty / Take Cup Action
+    window.simEmptyCup = function() {
+      if (machineState === 'DISPENSING') return;
+      cupFillLevel = 0;
+      cupLiqMesh.scale.y = 0.001;
+      cupLiqMesh.visible = false;
+      if (machineState === 'DONE') {
+        machineState = 'IDLE';
+        btnCoinEl.disabled = false;
+        updateLCDTexture('INSERT COIN...  ', '1:BLACK  2:COLD ');
+      }
+      refreshTankUI();
+    };
+
+    // 4. Refill Both Containers Action
+    window.simRefillTanks = function() {
+      tankState.BLACK.level = 0.90;
+      tankState.COLD.level  = 0.90;
+      refreshTankUI();
+      if (machineState === 'SELECT_DRINK') {
+        updateLCDTexture('TANKS REFILLED! ', '1:BLACK  2:COLD ');
+      }
+    };
+
+    // ============================================================================
+    // CLICK & HOVER INTERACTION ON 3D FRONT PANEL (Coin Slot & Buttons)
+    // ============================================================================
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    window.addEventListener('pointermove', (e) => {
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(clickableObjects, false);
+      if (hits.length > 0) {
+        document.body.style.cursor = 'pointer';
+        tooltip.style.display = 'block';
+        tooltip.style.left = `${e.clientX + 14}px`;
+        tooltip.style.top = `${e.clientY + 14}px`;
+        tooltip.innerHTML = `<strong>${hits[0].object.userData.tooltip}</strong>Click directly in 3D to trigger!`;
+      } else {
+        document.body.style.cursor = 'default';
+        tooltip.style.display = 'none';
+      }
+    });
+
+    window.addEventListener('click', (e) => {
+      if (e.target.closest('.ui-panel') || e.target.closest('.sim-panel')) return;
+      mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(clickableObjects, false);
+      if (hits.length > 0) {
+        const act = hits[0].object.userData.action;
+        if (act === 'COIN') window.simInsertCoin();
+        if (act === 'BLACK') window.simSelectDrink('BLACK');
+        if (act === 'COLD') window.simSelectDrink('COLD');
+      }
+    });
+
+    // ============================================================================
+    // UI SLIDERS & CAMERA PRESETS
+    // ============================================================================
+    document.getElementById('explode-slider').addEventListener('input', (e) => {
+      const factor = parseFloat(e.target.value) / 100;
+      document.getElementById('explode-val').textContent = `${e.target.value}%`;
+      panels.forEach((p) => {
+        p.position.copy(p.userData.basePos).addScaledVector(p.userData.explodeVec, factor);
+      });
+    });
+
+    document.getElementById('opacity-slider').addEventListener('input', (e) => {
+      const val = parseFloat(e.target.value) / 100;
+      document.getElementById('opacity-val').textContent = `${e.target.value}%`;
+      cardboardMaterial.opacity = val;
+    });
+
+    function bindToggle(id, category) {
+      document.getElementById(id).addEventListener('change', (e) => {
+        const vis = e.target.checked;
+        panels.filter(p => p.userData.category === category).forEach(p => { p.visible = vis; });
+      });
+    }
+    bindToggle('toggle-front', 'front');
+    bindToggle('toggle-right', 'right');
+    bindToggle('toggle-left', 'left');
+    bindToggle('toggle-back', 'back');
+    bindToggle('toggle-top', 'top');
+    bindToggle('toggle-shelves', 'shelves');
+
+    window.setCameraView = function(view) {
+      if (view === 'iso') {
+        controls.target.set(0, 145, 0); camera.position.set(270, 210, 360);
+      } else if (view === 'front') {
+        controls.target.set(0, 145, 0); camera.position.set(0, 155, 420);
+      } else if (view === 'tanks') {
+        controls.target.set(0, 240, 0); camera.position.set(170, 310, 210);
+      } else if (view === 'cup') {
+        controls.target.set(0, 55, 0); camera.position.set(110, 95, 220);
+      } else if (view === 'electronics') {
+        controls.target.set(0, 145, 5); camera.position.set(165, 200, 195);
+      } else if (view === 'side') {
+        controls.target.set(0, 150, 0); camera.position.set(440, 150, 0);
+        const rt = document.getElementById('toggle-right');
+        rt.checked = false; rt.dispatchEvent(new Event('change'));
+      }
+      controls.update();
+    };
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // ============================================================================
+    // MAIN ANIMATION LOOP
+    // ============================================================================
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+
+      // 1. Coin Insertion Animation
+      if (machineState === 'COIN_ANIM') {
+        coinAnimProgress += dt * 1.8;
+        coinMesh.position.z = (D / 2 + 22) - coinAnimProgress * 36;
+
+        // Flash IR Obstacle Sensor Green LED when coin crosses beam
+        if (coinAnimProgress > 0.35 && coinAnimProgress < 0.85) {
+          irTriggerLed.material.color.setHex(0x2ecc71);
+          irTriggerLed.material.emissive.setHex(0x2ecc71);
+        } else {
+          irTriggerLed.material.color.setHex(0x333333);
+          irTriggerLed.material.emissive.setHex(0x000000);
+        }
+
+        if (coinAnimProgress >= 1) {
+          coinMesh.visible = false;
+          machineState = 'SELECT_DRINK';
+          btnBlackEl.disabled = false;
+          btnColdEl.disabled  = false;
+          updateLCDTexture('COIN ACCEPTED!  ', '1:BLACK  2:COLD ');
+        }
+      }
+
+      // 2. Drink Dispensing Animation (Pump ON -> Tank Drains -> Stream Pours -> Small Cup Fills)
+      if (machineState === 'DISPENSING' && activeDrink) {
+        const duration = 3.2; // seconds to fill small cup
+        dispenseProgress += dt / duration;
+
+        // Drain selected container & fill small cup
+        tankState[activeDrink].level = Math.max(0.05, tankState[activeDrink].level - (dt / duration) * 0.16);
+        cupFillLevel = Math.min(1.0, dispenseProgress);
+        cupLiqMesh.scale.y = Math.max(0.01, cupFillLevel);
+
+        // Subtle stream pulse animation
+        const pulse = 1 + Math.sin(dispenseProgress * 35) * 0.12;
+        tankMeshes[activeDrink].streamMesh.scale.set(pulse, 1, pulse);
+
+        // Progress bar on LCD1602 second row
+        const barsCount = Math.min(16, Math.floor(dispenseProgress * 16));
+        const barStr = '#'.repeat(barsCount).padEnd(16, '.');
+        updateLCDTexture(
+          activeDrink === 'BLACK' ? 'POURING BLACK...' : 'POURING COLD... ',
+          barStr
+        );
+        refreshTankUI();
+
+        if (dispenseProgress >= 1.0) {
+          // Turn OFF Pump Relay & Nozzle Stream
+          relayChannelLeds[activeDrink].material.color.setHex(0x331111);
+          relayChannelLeds[activeDrink].material.emissive.setHex(0x000000);
+          tankMeshes[activeDrink].tubeMat.color.setHex(0xfff8eb);
+          tankMeshes[activeDrink].streamMesh.visible = false;
+
+          machineState = 'DONE';
+          btnCoinEl.disabled = false;
+          updateLCDTexture(
+            activeDrink === 'BLACK' ? 'BLACK COFFEE RDY' : 'COLD COFFEE RDY ',
+            'ENJOY YOUR DRINK'
+          );
+        }
+      }
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    refreshTankUI();
+    animate();
+  </script>
+</body>
+</html>
